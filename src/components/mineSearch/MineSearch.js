@@ -19,13 +19,6 @@ import {inject,observer} from 'mobx-react'
 }))
 class MineSearch extends Component {
 
-    // restartGame = () => {
-
-    //     this.props.mine = 10;
-    //     this.props.timer = 0;
-    //     this.props.setBoard();
-    // }
-
     render() {
         const {restartGame,mine,timer,timeList} =this.props
         return (
