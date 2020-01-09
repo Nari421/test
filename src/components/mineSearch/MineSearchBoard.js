@@ -1,17 +1,23 @@
 /*************************************************************************
-* PROGRAM NAME :  지뢰찾기
-* DESCRIPTION  : 지뢰판 생성
+* PROGRAM NAME : 지뢰찾기 게임판
+* DESCRIPTION  : 8 x 8의 지뢰판 생성
+* DATE         : 2020.01.09
+* PROGRAMMER   : 김나리
 *************************************************************************/
 
-// 1. import 정의
+/***********************************************************************
+* Import Define
+***********************************************************************/
 import React, { Component } from 'react';
 import {inject, observer} from 'mobx-react';
 import MineSearchBoardRow from './MineSearchBoardRow';
-// 2. inject으로 
+
+//inject로 Store에 있는 값을 props에 주입 
 @inject(({board})=>({
     setBoard:board.setBoard,
     game:board.game
 }))
+//react 클래스형 컴포넌트
 class MineSearchBoard extends Component {
     constructor(props) {
         super(props);
@@ -20,6 +26,7 @@ class MineSearchBoard extends Component {
     }
     
     render() {
+        //setBoard로 지뢰찾기 게임 판 생성 후 game배열 props로 전달
         const {game} = this.props;  
         return (
             <div>
@@ -35,4 +42,7 @@ class MineSearchBoard extends Component {
     }
 }
 
+/***********************************************************************
+* 클래스형 컴포넌트를 Export하고 Hoc방식으로 observer로 감싸 관찰대상 컴포넌트를 명시
+***********************************************************************/
 export default (observer(MineSearchBoard));

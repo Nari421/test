@@ -1,28 +1,28 @@
+/*************************************************************************
+* PROGRAM NAME : 지뢰찾기 스토어
+* DESCRIPTION  : 지뢰찾기 게임의 상태관리를 위한 store
+* DATE         : 2020.01.09
+* PROGRAMMER   : 김나리
+*************************************************************************/
+
+/***********************************************************************
+* Import Define
+***********************************************************************/
 import { observable, action } from 'mobx';
 import {CODE} from '../components/common/MineSearch';
-
 
 export default class MineSearchStore {
     @observable row = 8;        //지뢰판의 세로길이
     @observable cell = 8;       //지뢰판의 가로길이
     @observable mine = 10;      //지뢰 갯수
 
-    @observable finishCount = 0;    //게임이 ... 되기 위한 버튼 클릭 횟수를 저장
+    @observable finishCount = 0;  //게임이 끝나기 위한 마우스 버튼 클릭 횟수를 저장
     @observable notMine = 0;      //우클릭으로 지뢰를 선택하지 못했을때 카운트되어 게임이 종료 되었을 때 성공 여부를 결정
     @observable timer = 0;        //게임 소요시간
-    @observable timerStart;
-    @observable timeList = 0;
-    // @observable CODE = {        //지뢰판의 상태 코드
-    //     MINE: -7,               //지뢰 칸
-    //     NORMAL: -1,             //일반 칸
-    //     FLAG: -3,               //지뢰 결과표시 
-    //     FLAG_MINE: -5,          //깃발 표시
-    //     CLICKED_MINE: -6,       //지뢰선택
-    //     OPENED: 0,              //일반 칸
-    // }
-    @observable game = [];      //지뢰게임을 위한 지뢰판 2차원
-    @observable subgameData = []//이전 위치가 지뢰인지 확인하기 위한 game의 서브배열
-
+    @observable timerStart=false; //setInterval을 쓰기 위한 변수
+    @observable timeList = 0;     //사용자의 게임 시간 저장
+    @observable game = [];        //지뢰게임을 위한 지뢰판 2차원
+    @observable subgameData = []  //이전 위치가 지뢰인지 확인하기 위한 game의 서브배열
 
 
     //지뢰 게임을 위한 지뢰판 생성 및 지뢰 랜덤 배치
@@ -62,9 +62,11 @@ export default class MineSearchStore {
         this.mine = 10;
         this.timer = 0;
         this.setBoard();
+        clearInterval(this.timerStart);
     }
 
     //게임끝났을 때, 결과 채점
+    @action
     endGame = () => {
         if (this.mine === 0) {
             if (this.notMine > 0) {
@@ -91,7 +93,7 @@ export default class MineSearchStore {
     }
 
     
-
+    //시간 카운트를 위해 1초마다 setInterval
     @action
     setTimer = () => {
         this.timerStart = setInterval(() => {
@@ -100,117 +102,71 @@ export default class MineSearchStore {
 
     }
 
-    //
+    //셀 클릭 이벤트
     @action
-    cellClick = (row, i, direction) => {
-        if (this.timer === 0) this.setTimer();
-        let code = this.game[row][i]
-        if (direction === 0) {
-            if (code === CODE.MINE) {
-                this.game[row][i] = CODE.CLICKED_MINE;
-                setTimeout(() => {
-                    alert('지뢰입니다.');
-                    this.result()
-                    this.timeList = this.timer;
-                    clearInterval(this.timerStart);
-                }, 200);
+    cellClick = (row, cell, direction) => {
+        if (this.timer === 0) this.setTimer();  //첫 셀이 클릭되면 timer시작
+
+        let code = this.game[row][cell]
+        if (direction === 0) {          //0: 마우스 왼쪽 클릭 ,1: 마우스 오른쪽 클릭
+            if (code === CODE.MINE) {   
+                this.game[row][cell] = CODE.CLICKED_MINE;
+                alert('지뢰입니다.');
+                this.result();
+                this.timeList = this.timer;
+                clearInterval(this.timerStart);
                 this.finishCount += 1;
             } else if (code === CODE.NORMAL) {
-                code = this.aroundCell(row, i)
-
-                this.game[row][i] = code;
+                code = this.aroundCell(row, cell)   //주변 셀 검사
+                this.game[row][cell] = code;
                 this.finishCount += 1;
-            } else if (code === CODE.OPENED) {
-
+            } else if (code === CODE.OPENED) {      //열렸던 칸은 finishCount되지 않음
+                return;
             }
 
         }
         else {
-
-            if (code === CODE.FLAG_MINE) {
-                let before = this.subgameData[row][i];
-                this.game[row][i] = before;
-                before = before !== -7 ? this.notMine -= 1 : before;
+            if (code === CODE.FLAG_MINE) {                  //마우스 오른쪽 클릭시 깃발이 있던 칸
+                let before = this.subgameData[row][cell];   //이전의 좌표와 비교하여 일반칸이었는지 지뢰칸이었는지 확인
+                this.game[row][cell] = before;
+                before = before !== -5 ? this.notMine -= 1 : before;    //일반 칸이 지뢰였다 해제되었으면 notMine감소
                 this.mine += 1;
                 this.finishCount += 1;
             } else {
                 code = code === -1 ? this.notMine += 1 : code;
-                this.game[row][i] = CODE.FLAG_MINE;
+                this.game[row][cell] = CODE.FLAG_MINE;
                 this.mine -= 1;
                 this.finishCount -= 1;
             }
 
         }
-        return this.finishCount === 54 ? this.endGame() : null || this.mine === 0 ? this.endGame() : null;
-
+        
+        return (this.finishCount === 54 ? this.endGame() : null )||(this.mine === 0 ? this.endGame() : null);
     }
-    aroundCell = (row, cell) => {
-        const x = [-1, -1, -1, 0, 0, 1, 1, 1];
-        const y = [-1, 0, 1, -1, 1, -1, 0, 1];
-        let count = 0;
-        let aroudArr = [];
-        for (let i = 0; i < 8; i++) {
-            if (row + (x[i]) < 0 || row + (x[i]) >= this.game.length || cell + y[i] < 0 || cell + y[i] >= this.game[0].length) {
-                continue;
-            } else {
-                aroudArr[i] = this.game[row + (x[i])][cell + y[i]];
-                if (aroudArr[i] === -7) count++;
-            }
-        }
-        return count;
-    };
+
+    //게임이 끝나고 난 후 지뢰의 모습을 판에 보여줌
+    @action
     result = () => {
         for (let i = 0; i < this.row; i++) {
             for (let j = 0; j < this.cell; j++) {
-                if (this.game[i][j] === -7) {
+                if (this.game[i][j] === -5) {
                     this.game[i][j] = CODE.FLAG;
-                    this.setStyle(this.game[i][j]);
                 }
             }
         }
     }
-
-    // setStyle = (code) => {
-    //     // const CODE = CODE
-    //     switch (code) {
-    //         case CODE.NORMAL:
-    //         case CODE.MINE:
-    //             return {
-    //                 background: "#444",
-    //             }
-    //         case CODE.CLICKED_MINE:
-    //         case CODE.OPENED:
-    //             return {
-    //                 background: 'white',
-    //             };
-    //         case CODE.FLAG_MINE:
-    //         case CODE.FLAG:
-    //             return {
-    //                 background: 'red',
-
-    //             };
-    //         default:
-    //             return {
-    //                 background: 'white',
-    //             };
-    //     }
-    // }
-    // setText = (code) => {
-    //     // const CODE = CODE
-
-    //     switch (code) {
-    //         case CODE.NORMAL:
-    //             return '　';
-    //         case CODE.MINE:
-    //             return '💣';
-    //         case CODE.CLICKED_MINE:
-    //             return '💣';
-    //         case CODE.FLAG_MINE:
-    //             return '⚑';
-    //         case CODE.FLAG:
-    //             return '💣';
-    //         default:
-    //             return code;
-    //     }
-    // };
+    //클릭한 셀의 주변 지뢰 카운트
+    aroundCell = (row, cell) => {
+        const x = [-1, -1, -1, 0, 0, 1, 1, 1];      //클릭한 셀을 중심으로 주변 좌표 탐색을 위한 변수
+        const y = [-1, 0, 1, -1, 1, -1, 0, 1];
+        let count = 0;
+        for (let i = 0; i < 8; i++) {
+            if (row + (x[i]) < 0 || row + (x[i]) >= this.game.length || cell + y[i] < 0 || cell + y[i] >= this.game[0].length) {
+                continue;
+            } else {
+                if (this.game[row + (x[i])][cell + y[i]]=== -5) count++;
+            }
+        }
+        return count;
+    };
 }
